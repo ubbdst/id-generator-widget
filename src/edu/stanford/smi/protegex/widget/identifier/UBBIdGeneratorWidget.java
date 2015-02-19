@@ -46,4 +46,32 @@ public class UBBIdGeneratorWidget extends TextFieldWidget {
              super.setValues(values);
         }
         
+               
+        /*The method returns the current value displayed by the widget
+         This method is called on the value change. So the idea will be
+         to rename the instance url based on change of the identifier slot
+        */
+        @Override
+            public Collection getValues() {
+                //Get the current instance
+                Instance instance = getInstance();
+                
+                //Instance name is the same as instance URI deplayed in "For Individual" slot of the Protege Desktop
+                String instanceURI = instance.getName();
+                          
+                //TO DO: There is more logic to handle here, this is only one case.
+                String newURI = instanceURI.replaceFirst("([A-Z][a-z]+)_[0-9]+$","instance/$1").toLowerCase(); 
+                
+                //get the current value fron the slot widget
+                String currentSlotValue = getText();
+                
+                if(!currentSlotValue.isEmpty()){
+                 
+                 //TO DO: We want to rename instance URI here.
+                 System.out.println("====================================\n"
+                                + "New Value IRI: " + newURI + "/" + currentSlotValue);
+                }
+                return CollectionUtilities.createCollection(currentSlotValue);
+            }
+        
 }
