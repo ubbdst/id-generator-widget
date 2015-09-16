@@ -1,6 +1,6 @@
 ##Id Generator Slot Widget
 ==
-This is a Protege plugin (for Protege v3.XXX) which generates Universal Unique Identifier (UUID version 4) of the instance if it does not have one from before. The plugins checks for the value of the identifier slot of the instance, if it does not have one, it generate the value and assign it to that instance in time.
+This is a Protege plugin (for Protege v3.XXX) which generates Universal Unique Identifier (UUID version 4) of the instance if it does not have one from before (here Person, Image or Document are some examples of instance). The plugins checks for the value of the identifier slot (the slot that this plugin was assigned to), if it does not have one, it generates new ID and assign it to that instance in time. New ID is generated only when a new instance is created or when the instance is visited for the fast time and the value of the identifier slot is <code>null<code>.
 
 
 ### How to install the plugin
