@@ -1,3 +1,5 @@
 Manifest-Version: 1.0
-X-COMMENT: Main-Class will be added automatically by build
+
+Name: edu/stanford/smi/protegex/widget/identifier/UBBIdGeneratorWidget.class
+Slot-Widget: True
 
