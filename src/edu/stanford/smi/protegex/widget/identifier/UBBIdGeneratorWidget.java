@@ -1,15 +1,20 @@
 package edu.stanford.smi.protegex.widget.identifier;
 
+import java.awt.*;
 import java.util.Collection;
 
+import com.sun.xml.internal.fastinfoset.algorithm.UUIDEncodingAlgorithm;
+import edu.stanford.smi.protege.event.FrameAdapter;
 import edu.stanford.smi.protege.event.FrameEvent;
 import edu.stanford.smi.protege.event.FrameListener;
 import edu.stanford.smi.protege.event.InstanceListener;
 import edu.stanford.smi.protege.model.*;
+import edu.stanford.smi.protege.model.Frame;
 import edu.stanford.smi.protege.util.CollectionUtilities;
 import edu.stanford.smi.protege.widget.SlotWidget;
 import edu.stanford.smi.protege.widget.TextFieldWidget;
 
+import javax.swing.*;
 import java.util.Collections;
 import java.util.UUID;
 
@@ -23,6 +28,11 @@ import java.util.UUID;
 
 public class UBBIdGeneratorWidget extends TextFieldWidget {
     private static final String INSTANCE_TEXT = "instance";
+    private boolean isFirstLoaded = true;
+    private boolean isInvalidText = false;
+    private Collection instanceValues = Collections.EMPTY_LIST;
+    private static final String INVALID_NAME_MSG = "Name already exists: ";
+    private static final String PREFIX = "http://data.ub.uib.no/";
 
     public static boolean isSuitable(Cls cls, Slot slot, Facet facet) {
 
@@ -34,44 +44,146 @@ public class UBBIdGeneratorWidget extends TextFieldWidget {
     }
 
     /**
-     * Set value of the slot if it does not have one.
+     * Set value of the slot if it does not have one. (during creation)
      *
      * @param values
      **/
     @Override
     public void setValues(final Collection values) {
-        System.out.println("Instance: " + getInstance().getName());
+        System.out.println("Setting values: " + values.toString() + " for " + getInstance().getName());
         String uniqueId = (String) CollectionUtilities.getFirstItem(values);
+        //instanceValues = values;
         if (uniqueId == null) {
             //generate unique Id
             uniqueId = UUID.randomUUID().toString();
-            setText(uniqueId);
-            //getTextField().setEnabled(false);
-           //this.setInstanceValues();
+            //System.out.println("isInitialized : " + IdUtils.isInitialized);
             //System.out.println("Setting instance value with ID." + uniqueId);
             //Fire renaming
-            //renameURI(this.getInstance(), uniqueId);
-
-            Instance instance = getInstance();
-            //Get current slot value
-            String currentSlotValue = this.getText();
-
-            System.out.println("Instance for get values:  " + getInstance());
-            System.out.println("Instance for get texts:  " + this.getText());
-
-            //TODO: //more logic here
-            String className = getCls().getName().replaceAll("^.+?([^/#]+)$", "$1");
-
-            String newURI = "http://data.ub.uib.no/instance/" + className + "/" + currentSlotValue;
-            String oldURI = getInstance().getFrameID().getName();
+            //renameInstance(this.getInstance(), uniqueId);
+            //isTextSet = false;
+             setText(uniqueId);
+            //getTextField().setEnabled(false);
+             super.setInstanceValues();
+            //isTextSet = true;
         }
         else {
             super.setValues(values);
         }
+    }
 
-        //Fire renaming
-        //renameInstance(this.getInstance(), uniqueId);
+    //TODO:Check for the
 
+
+    /**
+     * Respond to
+     */
+    @Override
+    public void setInstanceValues() {
+        Collection values = getValues();
+        System.out.println("Instance values: " + values.toString());
+        if (values == null) {
+            throw new IllegalArgumentException("Illegal null value for frame");
+        }
+        else if (values.isEmpty()) {
+            throw new IllegalArgumentException("Missing name for class");
+        }
+        else if (values.size() > 1) {
+            throw new IllegalArgumentException("Too many names for frame " + values.size());
+        }
+        else if (!(values.iterator().next() instanceof String)) {
+            throw new IllegalArgumentException("name should be a string");
+        }
+        String name = (String) values.iterator().next();
+
+        //Validate name early
+        validateName(name);
+
+        Instance i = getInstance();
+        if (i.getName().equals(name)) {
+            invalidateTextBox(name);
+            return;
+        }
+
+        //Check if the value is hash
+        String uniqueId = (String) CollectionUtilities.getFirstItem(values);
+
+        //TODO: Check if uniqueID  is hash UUID v4
+        //How about fprefix?
+        if(uniqueId.startsWith("ubb")){
+            i.rename(name);
+            setText(uniqueId);
+            super.setInstanceValues();
+            markDirty(false);
+        }
+
+        //Call super set InstanceValues
+        //super.setInstanceValues();
+
+    }
+
+
+    /**protected String getInvalidTextDescription(String text) {
+        String invalidText = null;
+        if (text == null || !isValidName(text)) {
+            invalidText = "Invalid frame name";
+        }
+        return invalidText;
+    }**/
+
+
+    private boolean isValidName(String prefix, String name) {
+        String frameName = prefix + name;
+        Frame currentFrame = getInstance();
+        Frame frame = getKnowledgeBase().getFrame(frameName);
+        boolean isDuplicate = (frame != null) && !frame.equals(currentFrame);
+        boolean isValid = getKnowledgeBase().isValidFrameName(frameName, currentFrame);
+        return isValid && !isDuplicate && name.length() > 0;
+    }
+
+
+    /**
+     * Validate name
+     */
+    private void validateName(String text){
+        if (text == null || !isValidName(PREFIX, text)) {
+            String t = "Frame with name [" + text + "]" + " already exists";
+            invalidateTextBox(t);
+            throw new IllegalArgumentException(t);
+        }
+    }
+
+
+    /**
+     * invalidate name
+     */
+    private void invalidateTextBox(String text){
+        getTextField().setForeground(Color.RED);
+        JOptionPane.showMessageDialog(null,
+                getBoldTextLabel(text),
+                INVALID_NAME_MSG,
+                JOptionPane.ERROR_MESSAGE);
+    }
+
+
+    /**
+     * Get text label in bold.
+     */
+    private String getBoldTextLabel(String inputString){
+        StringBuilder s = new StringBuilder();
+        s.append("<html>")
+                .append("<strong>")
+                .append(INVALID_NAME_MSG)
+                .append("</strong>")
+                .append("\"")
+                .append(inputString)
+                .append("\"")
+                .append("</html>");
+        return s.toString();
+    }
+
+    @Override
+    public void setInstance(Instance instance) {
+        super.setInstance(instance);
     }
 
 
@@ -125,37 +237,41 @@ public class UBBIdGeneratorWidget extends TextFieldWidget {
                  + "\nClass Name: " + className
                  );
 
-                 Collection directTypes = instance.getDirectTypes();
+
                  **/
 
 
                 try {
+                    Collection directTypes = instance.getDirectTypes();
 
                     //Delete old instance
                     //System.out.println("Deleting old instance with name." + instance.getName());
                     //this.getKnowledgeBase().deleteInstance(instance);
 
                     //Create new instance
-                    //Instance newInstance = this.getKnowledgeBase().createInstance(newInstanceURI, directTypes);
-                    //System.out.println("Created new instance with name." + newInstance.getName());
+                    Instance newInstance = this.getKnowledgeBase().createInstance(null, directTypes);
+                    System.out.println("Created new instance with name." + newInstance.getName());
+
+
+
+                    FrameID id = new FrameID(null);
+                    System.out.println("Frame ID" + id.getName());
+
 
                     //FrameID id = new FrameID(newInstanceURI);
-                    Collection directTypes = instance.getDirectTypes();
-
 
                     //Get copy of the old one, and then rename.
-                    System.out.println("Copying old instance and renaming it." + instance.getName());
-                    Frame newFrame = instance
-                            .deepCopy(null, null)
-                            .rename(newInstanceURI);
+                    //System.out.println("Copying old instance and renaming it." + instance.getName());
+                    //Frame newFrame = instance.deepCopy(null, null).rename(null);
+
 
                     //Delete old instance
-                    System.out.println("Deleting old instance with name." + instance.getName());
-                    instance.setDirectTypes(directTypes);
-                    this.getKnowledgeBase().deleteInstance(instance);
+                    //System.out.println("Deleting old instance with name." + instance.getName());
+                    //instance.setDirectTypes(directTypes);
+                    //this.getKnowledgeBase().deleteInstance(instance);
 
 
-                    return (Instance) newFrame;
+                    return (Instance)newInstance;
 
 
                     //Renaming instance?
@@ -194,45 +310,34 @@ public class UBBIdGeneratorWidget extends TextFieldWidget {
          * to rename the instance url based on change of the identifier slot
          */
 
-        @Override public Collection getValues() {
-        //Get the current instance
-        Instance instance = getInstance();
+       /** @Override public Collection getValues() {
         //Get current slot value
-        String currentSlotValue = this.getText();
+         String currentSlotValue = this.getText();
+         String currentValue = (String) CollectionUtilities.getFirstItem(instanceValues);
+        //System.out.println("Instance for get values:  " + getInstance());
+        //System.out.println("Instance for get texts:  " + this.getText());
 
-        System.out.println("Instance for get values:  " + getInstance());
-        System.out.println("Instance for get texts:  " + this.getText());
+            System.out.println("Current instance value: " + currentValue);
+        if(currentSlotValue != null && currentSlotValue.length() > 0 && isTextSet) {
+            //TODO:cmore logic here
+            String className = getCls().getName().replaceAll("^.+?([^/#]+)$", "$1");
+            String newURI = "http://data.ub.uib.no/instance/" + className + "/" + currentSlotValue;
+            String oldURI = getInstance().getFrameID().getName();
+            if (newURI.equals(oldURI)) {
+                System.out.println("They are equal");
+            } else  {
+                System.out.println("Renaming with \nNew URI: " + newURI);
+                System.out.println("Old URI: " + oldURI);
 
-        //TODO: //more logic here
-        String className = getCls().getName().replaceAll("^.+?([^/#]+)$", "$1");
+                //TODO check if newURI exist
+                getInstance().getKnowledgeBase().rename(getInstance(), newURI);
+                //setText(currentSlotValue);
+                //setInstanceValues();
+            }
 
-        String newURI = "http://data.ub.uib.no/instance/" + className + "/" + currentSlotValue;
-        String oldURI = getInstance().getFrameID().getName();
-
-
-        if(newURI.equals(oldURI)){
-            System.out.println("They are equal");
         }
-        else {
-            System.out.println("New URI: " + newURI);
-            System.out.println("Old URI: " + oldURI);
-            //Rename
-            //getInstance().rename(newURI);
-            getInstance().getKnowledgeBase().rename(getInstance(), newURI);
-            //TODO check if newURI exist
-
-        }
-        //Fire renaming
-        //Instance newInstance = renameInstance(this.getInstance(), getText());
-        //setInstance(newInstance);
-
-
-        if(currentSlotValue == null){
-        System.out.println("Got null slot value ");
-        }
-
         return CollectionUtilities.createList(currentSlotValue);
-        }
+        }**/
     }
 
 
